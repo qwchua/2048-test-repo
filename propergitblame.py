@@ -100,12 +100,10 @@ def propergitblame(filename, output, numberofcommits):
 
 
 def getScoreboard(filename, numberofcommits=200):
-    with open('output.txt', 'w') as f:
-        gitlogcommand = 'git log -n {} --pretty="format:%H:%an:%ae:%cD" -- {} '.format(numberofcommits,filename)
-        p1 = subprocess.run(gitlogcommand, shell=True, stdout=f, text=True)
-
-    file = open('output.txt')
-    collection = file.readlines()
+    gitlogcommand = 'git log -n {} --pretty="format:%H:%an:%ae:%cD" -- {} '.format(numberofcommits,filename)
+    unparsedlog = subprocess.run(gitlogcommand, shell=True, capture_output=True, text=True)
+    unparsedlogstring = unparsedlog.stdout
+    collection = unparsedlogstring.split('\n')
     commitgraph = []
 
 
@@ -207,12 +205,10 @@ def getScoreboard(filename, numberofcommits=200):
 
 def getScoreboardwithoutnumberofcommits(filename):
     print("Doing " + filename + " now!")
-    with open('output.txt', 'w') as f:
-        gitlogcommand = 'git log --pretty="format:%H:%an:%ae:%cD" -- {} '.format(filename)
-        p1 = subprocess.run(gitlogcommand, shell=True, stdout=f, text=True)
-
-    file = open('output.txt')
-    collection = file.readlines()
+    gitlogcommand = 'git log --pretty="format:%H:%an:%ae:%cD" -- {} '.format(filename)
+    unparsedlog = subprocess.run(gitlogcommand, shell=True, capture_output=True, text=True)
+    unparsedlogstring = unparsedlog.stdout
+    collection = unparsedlogstring.split('\n')
     commitgraph = []
 
 

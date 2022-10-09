@@ -15,12 +15,19 @@ def getStarts(line):
 
 
 def getResults(filename, numberOfCommits=200):
-    with open('output.txt', 'w') as f:
-        gitlogcommand = 'git log -n {} --pretty="format:%H:%an:%ae:%cD" -- {} '.format(numberOfCommits,filename)
-        p1 = subprocess.run(gitlogcommand, shell=True, stdout=f, text=True)
+    # with open('output.txt', 'w') as f:
+    #     gitlogcommand = 'git log -n {} --pretty="format:%H:%an:%ae:%cD" -- {} '.format(numberOfCommits,filename)
+    #     p1 = subprocess.run(gitlogcommand, shell=True, stdout=f, text=True)
 
-    file = open('output.txt')
-    collection = file.readlines()
+    # file = open('output.txt')
+    # collection = file.readlines()
+    # commitgraph = []
+
+
+    gitlogcommand = 'git log -n {} --pretty="format:%H:%an:%ae:%cD" -- {} '.format(numberOfCommits,filename)
+    unparsedlog = subprocess.run(gitlogcommand, shell=True, capture_output=True, text=True)
+    unparsedlogstring = unparsedlog.stdout
+    collection = unparsedlogstring.split('\n')
     commitgraph = []
 
 

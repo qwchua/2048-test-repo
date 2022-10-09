@@ -1,3 +1,0 @@
-let user select since 
-output format
-file / directory or whole folder
