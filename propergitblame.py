@@ -47,14 +47,14 @@ def propergitblame(filename, output, numberofcommits):
         print(f'Finished in {t2-t1}')
 
     else:
+        t1 = time.perf_counter()
         scoreboard = getScoreboard(filename, numberofcommits)
-
+        
         if(output == "piechart"):
             print("Displaying piechart!")
             dict = {}
             for i in range(1, len(scoreboard)):
                 author = scoreboard[i]
-
                 if author in dict.keys():
                     #key exists
                     dict[author] += 1
@@ -94,6 +94,9 @@ def propergitblame(filename, output, numberofcommits):
             
             for o in output:
                 print(o)
+        
+        t2 = time.perf_counter()
+        print(f'Finished in {t2-t1}s')
 
 
 
@@ -105,6 +108,8 @@ def getScoreboard(filename, numberofcommits=200):
     unparsedlogstring = unparsedlog.stdout
     collection = unparsedlogstring.split('\n')
     commitgraph = []
+    print("File was found in : {} commits".format(len(collection)))
+    print("Analyzing...")
 
 
     for c in collection:
