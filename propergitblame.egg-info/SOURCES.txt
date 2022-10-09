@@ -1,0 +1,9 @@
+LICENSE.txt
+README.md
+setup.py
+propergitblame.egg-info/PKG-INFO
+propergitblame.egg-info/SOURCES.txt
+propergitblame.egg-info/dependency_links.txt
+propergitblame.egg-info/entry_points.txt
+propergitblame.egg-info/requires.txt
+propergitblame.egg-info/top_level.txt
