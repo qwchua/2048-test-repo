@@ -6,6 +6,7 @@ from matplotlib import pyplot as plt
 import numpy
 import time
 import concurrent.futures
+from numba import njit
 
 def getStarts(line):
     pattern = re.compile(r'@@\s-\d*,?\d*\s\+\d*,?\d* @@')
@@ -96,8 +97,6 @@ def propergitblame(filename, output, numberofcommits):
 
 
 
-
-
 def getScoreboard(filename, numberofcommits=200):
     gitlogcommand = 'git log -n {} --pretty="format:%H:%an:%ae:%cD" -- {} '.format(numberofcommits,filename)
     unparsedlog = subprocess.run(gitlogcommand, shell=True, capture_output=True, text=True)
@@ -138,33 +137,39 @@ def getScoreboard(filename, numberofcommits=200):
         #print("{} : {}".format(i, scoreboard[i]))
 
     for i in range(len(commitgraph)-1):
-    #for i in range(2):
         commithash0 = commitgraph[i]['hash']
         commithash1 = commitgraph[i+1]['hash']
-        #print("{} Doing hash0: {} and hash1: {}".format(i,commithash0,commithash1))
+        print("{} Doing hash0: {} and hash1: {}".format(i,commithash0,commithash1))
         gitdiffcommand = "git diff -U0 --numstat {} {} -- {}".format(commithash0,commithash1,filename)
 
         diff = subprocess.run(gitdiffcommand, shell=True, capture_output=True, text=True)
         unparsed_diff = diff.stdout
-        #print(unparsed_diff)
+
         unparsed_diff = unparsed_diff.split("\n")
-        #print(unparsed_diff[-1])
+
+        print(unparsed_diff[0])
+        #countOfInsertAndDelete = unparsed_diff[0].split("     ")
+        #print("number of insertion: {} , number of deletion: {}".format(countOfInsertAndDelete[0], countOfInsertAndDelete[1]))
+
         start1 = 0
         start2 = 0
 
         queue1 = []
         queue2 = []
         balance = 0
+        tt1 = time.perf_counter()
 
         for x in range(6, len(unparsed_diff)):
             if len(unparsed_diff[x]) == 0 or unparsed_diff[x][0] == "@":
                 while(queue1 or queue2):
                     if(queue1 and queue2 and queue1[0]["line"] == queue2[0]["line"]):
-                        #do listen algo here
+                        #do Levenshtein Distance algo here
                         THRESHOLDPERCENT = 0.5
                         previousVersionLine = queue1[0]["content"]
                         newVersionLine = queue2[0]["content"]
+                        #print("Calculating distance!")
                         distance = levenshteinDistanceDP(previousVersionLine,newVersionLine)
+                        #print("Distance counted!")
                         diffpercent = distance // len(previousVersionLine)
 
                         if diffpercent > THRESHOLDPERCENT:
@@ -176,6 +181,7 @@ def getScoreboard(filename, numberofcommits=200):
 
                         scoreboard[queue1[0]["line"]] = commitgraph[i+1]['author']
                         #print("Edited line {}".format(queue1[0]["line"]))
+                        #scoreboard[queue1[0]["line"]] = commitgraph[i+1]['author']
                         queue1.pop(0)
                         queue2.pop(0)
                     elif(queue1):
@@ -203,6 +209,10 @@ def getScoreboard(filename, numberofcommits=200):
             elif unparsed_diff[x][0] == "+":
                 queue2.append({"line":start2, "content": unparsed_diff[1:]})
                 start2+=1
+            
+        tt2 = time.perf_counter()
+        print(f'Commit finished in {tt2-tt1}')
+        
             
         #print("Round{} Scoreboard for hash0: {} and hash1: {}".format(i,commithash0,commithash1))
         #for i in range(1,len(scoreboard)):
@@ -281,7 +291,9 @@ def getScoreboardwithoutnumberofcommits(filename):
                         THRESHOLDPERCENT = 0.5
                         previousVersionLine = queue1[0]["content"]
                         newVersionLine = queue2[0]["content"]
+                        print("Calculating distance!")
                         distance = levenshteinDistanceDP(previousVersionLine,newVersionLine)
+                        print("Distance counted!")
                         diffpercent = distance // len(previousVersionLine)
 
                         if diffpercent > THRESHOLDPERCENT:
@@ -342,7 +354,7 @@ def getScoreboardwithoutnumberofcommits(filename):
     #for d in dict:
         #print("{}: {}%".format(d, dict[d]/len(scoreboard)))
 
-    
+@njit  
 def levenshteinDistanceDP(token1, token2):
     distances = numpy.zeros((len(token1) + 1, len(token2) + 1))
 

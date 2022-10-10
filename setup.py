@@ -8,7 +8,8 @@ setup(
     install_requires=[
         'click',
         'matplotlib',
-        'numpy'
+        'numpy',
+        'numba'
     ],
     entry_points='''
     [console_scripts]
