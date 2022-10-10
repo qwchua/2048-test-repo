@@ -7,7 +7,8 @@ setup(
     packages=find_packages(),
     install_requires=[
         'click',
-        'matplotlib'
+        'matplotlib',
+        'numpy'
     ],
     entry_points='''
     [console_scripts]

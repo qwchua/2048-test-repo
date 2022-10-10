@@ -3,6 +3,7 @@ from gc import collect
 import re
 import subprocess
 from matplotlib import pyplot as plt
+import numpy
 import time
 import concurrent.futures
 
@@ -16,11 +17,6 @@ def getStarts(line):
     start2 = matches[2][1:].split(',')[0]
 
     return int(start1), int(start2)
-
-# @click.command()
-# @click.option('--name', '-n', help="Name of the person to say hello", required=True)
-# def propergitblame(name):
-#     print("Hello world!" + name)
 
 @click.command()
 @click.option("-f", "--filename", type=str)
@@ -158,17 +154,26 @@ def getScoreboard(filename, numberofcommits=200):
 
         queue1 = []
         queue2 = []
-
-        negcurr = 0
         balance = 0
 
         for x in range(6, len(unparsed_diff)):
-        #for x in range(6, len(unparsed_diff)):
             if len(unparsed_diff[x]) == 0 or unparsed_diff[x][0] == "@":
                 while(queue1 or queue2):
                     if(queue1 and queue2 and queue1[0]["line"] == queue2[0]["line"]):
                         #do listen algo here
-                        #current I set as who edited last
+                        THRESHOLDPERCENT = 0.5
+                        previousVersionLine = queue1[0]["content"]
+                        newVersionLine = queue2[0]["content"]
+                        distance = levenshteinDistanceDP(previousVersionLine,newVersionLine)
+                        diffpercent = distance // len(previousVersionLine)
+
+                        if diffpercent > THRESHOLDPERCENT:
+                            #assign ownership to new version author
+                            scoreboard[queue1[0]["line"]] = commitgraph[i+1]['author']
+                        else:
+                            #assign ownership to old version author as the diff % is not enough
+                            scoreboard[queue1[0]["line"]] = commitgraph[i]['author']
+
                         scoreboard[queue1[0]["line"]] = commitgraph[i+1]['author']
                         #print("Edited line {}".format(queue1[0]["line"]))
                         queue1.pop(0)
@@ -273,7 +278,19 @@ def getScoreboardwithoutnumberofcommits(filename):
                 while(queue1 or queue2):
                     if(queue1 and queue2 and queue1[0]["line"] == queue2[0]["line"]):
                         #do listen algo here
-                        #current I set as who edited last
+                        THRESHOLDPERCENT = 0.5
+                        previousVersionLine = queue1[0]["content"]
+                        newVersionLine = queue2[0]["content"]
+                        distance = levenshteinDistanceDP(previousVersionLine,newVersionLine)
+                        diffpercent = distance // len(previousVersionLine)
+
+                        if diffpercent > THRESHOLDPERCENT:
+                            #assign ownership to new version author
+                            scoreboard[queue1[0]["line"]] = commitgraph[i+1]['author']
+                        else:
+                            #assign ownership to old version author as the diff % is not enough
+                            scoreboard[queue1[0]["line"]] = commitgraph[i]['author']
+
                         scoreboard[queue1[0]["line"]] = commitgraph[i+1]['author']
                         #print("Edited line {}".format(queue1[0]["line"]))
                         queue1.pop(0)
@@ -326,3 +343,33 @@ def getScoreboardwithoutnumberofcommits(filename):
         #print("{}: {}%".format(d, dict[d]/len(scoreboard)))
 
     
+def levenshteinDistanceDP(token1, token2):
+    distances = numpy.zeros((len(token1) + 1, len(token2) + 1))
+
+    for t1 in range(len(token1) + 1):
+        distances[t1][0] = t1
+
+    for t2 in range(len(token2) + 1):
+        distances[0][t2] = t2
+        
+    a = 0
+    b = 0
+    c = 0
+    
+    for t1 in range(1, len(token1) + 1):
+        for t2 in range(1, len(token2) + 1):
+            if (token1[t1-1] == token2[t2-1]):
+                distances[t1][t2] = distances[t1 - 1][t2 - 1]
+            else:
+                a = distances[t1][t2 - 1]
+                b = distances[t1 - 1][t2]
+                c = distances[t1 - 1][t2 - 1]
+                
+                if (a <= b and a <= c):
+                    distances[t1][t2] = a + 1
+                elif (b <= a and b <= c):
+                    distances[t1][t2] = b + 1
+                else:
+                    distances[t1][t2] = c + 1
+
+    return distances[len(token1)][len(token2)]
