@@ -7,6 +7,7 @@ import numpy
 import time
 import concurrent.futures
 from numba import njit
+from numba.typed import List
 
 def getStarts(line):
     pattern = re.compile(r'@@\s-\d*,?\d*\s\+\d*,?\d* @@')
@@ -139,7 +140,7 @@ def getScoreboard(filename, numberofcommits=200):
     for i in range(len(commitgraph)-1):
         commithash0 = commitgraph[i]['hash']
         commithash1 = commitgraph[i+1]['hash']
-        print("{} Doing hash0: {} and hash1: {}".format(i,commithash0,commithash1))
+        #print("{} Doing hash0: {} and hash1: {}".format(i,commithash0,commithash1))
         gitdiffcommand = "git diff -U0 --numstat {} {} -- {}".format(commithash0,commithash1,filename)
 
         diff = subprocess.run(gitdiffcommand, shell=True, capture_output=True, text=True)
@@ -147,7 +148,7 @@ def getScoreboard(filename, numberofcommits=200):
 
         unparsed_diff = unparsed_diff.split("\n")
 
-        print(unparsed_diff[0])
+        #print(unparsed_diff[0])
         #countOfInsertAndDelete = unparsed_diff[0].split("     ")
         #print("number of insertion: {} , number of deletion: {}".format(countOfInsertAndDelete[0], countOfInsertAndDelete[1]))
 
@@ -165,8 +166,8 @@ def getScoreboard(filename, numberofcommits=200):
                     if(queue1 and queue2 and queue1[0]["line"] == queue2[0]["line"]):
                         #do Levenshtein Distance algo here
                         THRESHOLDPERCENT = 0.5
-                        previousVersionLine = queue1[0]["content"]
-                        newVersionLine = queue2[0]["content"]
+                        previousVersionLine = List(queue1[0]["content"])
+                        newVersionLine = List(queue2[0]["content"])
                         #print("Calculating distance!")
                         distance = levenshteinDistanceDP(previousVersionLine,newVersionLine)
                         #print("Distance counted!")
@@ -211,7 +212,7 @@ def getScoreboard(filename, numberofcommits=200):
                 start2+=1
             
         tt2 = time.perf_counter()
-        print(f'Commit finished in {tt2-tt1}')
+        #print(f'Commit finished in {tt2-tt1}')
         
             
         #print("Round{} Scoreboard for hash0: {} and hash1: {}".format(i,commithash0,commithash1))
@@ -355,7 +356,7 @@ def getScoreboardwithoutnumberofcommits(filename):
         #print("{}: {}%".format(d, dict[d]/len(scoreboard)))
 
 @njit  
-def levenshteinDistanceDP(token1, token2):
+def levenshteinDistanceDP(token1,token2):
     distances = numpy.zeros((len(token1) + 1, len(token2) + 1))
 
     for t1 in range(len(token1) + 1):
