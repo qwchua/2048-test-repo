@@ -290,11 +290,9 @@ def getScoreboardwithoutnumberofcommits(filename):
                     if(queue1 and queue2 and queue1[0]["line"] == queue2[0]["line"]):
                         #do listen algo here
                         THRESHOLDPERCENT = 0.5
-                        previousVersionLine = queue1[0]["content"]
-                        newVersionLine = queue2[0]["content"]
-                        print("Calculating distance!")
+                        previousVersionLine = List(queue1[0]["content"])
+                        newVersionLine = List(queue2[0]["content"])
                         distance = levenshteinDistanceDP(previousVersionLine,newVersionLine)
-                        print("Distance counted!")
                         diffpercent = distance // len(previousVersionLine)
 
                         if diffpercent > THRESHOLDPERCENT:
