@@ -1,0 +1,272 @@
+02a24c06 (Mark Frederiksen  2014-03-18 14:48:55 -0400   1) function GameManager(size, InputManager, Actuator, StorageManager) {
+8ad8318c (Gabriele Cirulli  2014-03-22 17:06:37 +0100   2)   this.size           = size; // Size of the grid
+8ad8318c (Gabriele Cirulli  2014-03-22 17:06:37 +0100   3)   this.inputManager   = new InputManager;
+02a24c06 (Mark Frederiksen  2014-03-18 14:48:55 -0400   4)   this.storageManager = new StorageManager;
+8ad8318c (Gabriele Cirulli  2014-03-22 17:06:37 +0100   5)   this.actuator       = new Actuator;
+cf31e146 (Gabriele Cirulli  2014-03-08 12:50:45 +0100   6) 
+8ad8318c (Gabriele Cirulli  2014-03-22 17:06:37 +0100   7)   this.startTiles     = 2;
+f18f7cee (Gabriele Cirulli  2014-03-09 23:03:13 +0100   8) 
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100   9)   this.inputManager.on("move", this.move.bind(this));
+02b66ccb (Gabriele Cirulli  2014-03-10 11:31:10 +0100  10)   this.inputManager.on("restart", this.restart.bind(this));
+9626e2b0 (Laurent Margirier 2014-03-12 12:27:27 +0100  11)   this.inputManager.on("keepPlaying", this.keepPlaying.bind(this));
+cf31e146 (Gabriele Cirulli  2014-03-08 12:50:45 +0100  12) 
+cf31e146 (Gabriele Cirulli  2014-03-08 12:50:45 +0100  13)   this.setup();
+cf31e146 (Gabriele Cirulli  2014-03-08 12:50:45 +0100  14) }
+cf31e146 (Gabriele Cirulli  2014-03-08 12:50:45 +0100  15) 
+02b66ccb (Gabriele Cirulli  2014-03-10 11:31:10 +0100  16) // Restart the game
+02b66ccb (Gabriele Cirulli  2014-03-10 11:31:10 +0100  17) GameManager.prototype.restart = function () {
+02a24c06 (Mark Frederiksen  2014-03-18 14:48:55 -0400  18)   this.storageManager.clearGameState();
+cf01ca7e (Gabriele Cirulli  2014-03-23 19:51:29 +0100  19)   this.actuator.continueGame(); // Clear the game won/lost message
+02b66ccb (Gabriele Cirulli  2014-03-10 11:31:10 +0100  20)   this.setup();
+02b66ccb (Gabriele Cirulli  2014-03-10 11:31:10 +0100  21) };
+02b66ccb (Gabriele Cirulli  2014-03-10 11:31:10 +0100  22) 
+2f912471 (Gabriele Cirulli  2014-03-22 18:45:48 +0100  23) // Keep playing after winning (allows going over 2048)
+9626e2b0 (Laurent Margirier 2014-03-12 12:27:27 +0100  24) GameManager.prototype.keepPlaying = function () {
+9626e2b0 (Laurent Margirier 2014-03-12 12:27:27 +0100  25)   this.keepPlaying = true;
+cf01ca7e (Gabriele Cirulli  2014-03-23 19:51:29 +0100  26)   this.actuator.continueGame(); // Clear the game won/lost message
+9626e2b0 (Laurent Margirier 2014-03-12 12:27:27 +0100  27) };
+9626e2b0 (Laurent Margirier 2014-03-12 12:27:27 +0100  28) 
+6cb3d71a (Gabriele Cirulli  2014-03-22 18:41:47 +0100  29) // Return true if the game is lost, or has won and the user hasn't kept playing
+5392893c (Gabriele Cirulli  2014-03-14 13:34:05 +0100  30) GameManager.prototype.isGameTerminated = function () {
+3b86903e (janschoenherr     2014-04-16 10:54:51 +0200  31)   return this.over || (this.won && !this.keepPlaying);
+cfbf7490 (Gabriele Cirulli  2014-03-14 13:27:57 +0100  32) };
+9626e2b0 (Laurent Margirier 2014-03-12 12:27:27 +0100  33) 
+cf31e146 (Gabriele Cirulli  2014-03-08 12:50:45 +0100  34) // Set up the game
+cf31e146 (Gabriele Cirulli  2014-03-08 12:50:45 +0100  35) GameManager.prototype.setup = function () {
+c48b9268 (Gabriele Cirulli  2014-03-22 16:24:11 +0100  36)   var previousState = this.storageManager.getGameState();
+c48b9268 (Gabriele Cirulli  2014-03-22 16:24:11 +0100  37) 
+6cb3d71a (Gabriele Cirulli  2014-03-22 18:41:47 +0100  38)   // Reload the game from a previous game if present
+c48b9268 (Gabriele Cirulli  2014-03-22 16:24:11 +0100  39)   if (previousState) {
+c48b9268 (Gabriele Cirulli  2014-03-22 16:24:11 +0100  40)     this.grid        = new Grid(previousState.grid.size,
+c48b9268 (Gabriele Cirulli  2014-03-22 16:24:11 +0100  41)                                 previousState.grid.cells); // Reload grid
+c48b9268 (Gabriele Cirulli  2014-03-22 16:24:11 +0100  42)     this.score       = previousState.score;
+c48b9268 (Gabriele Cirulli  2014-03-22 16:24:11 +0100  43)     this.over        = previousState.over;
+c48b9268 (Gabriele Cirulli  2014-03-22 16:24:11 +0100  44)     this.won         = previousState.won;
+c48b9268 (Gabriele Cirulli  2014-03-22 16:24:11 +0100  45)     this.keepPlaying = previousState.keepPlaying;
+02a24c06 (Mark Frederiksen  2014-03-18 14:48:55 -0400  46)   } else {
+c48b9268 (Gabriele Cirulli  2014-03-22 16:24:11 +0100  47)     this.grid        = new Grid(this.size);
+c48b9268 (Gabriele Cirulli  2014-03-22 16:24:11 +0100  48)     this.score       = 0;
+c48b9268 (Gabriele Cirulli  2014-03-22 16:24:11 +0100  49)     this.over        = false;
+c48b9268 (Gabriele Cirulli  2014-03-22 16:24:11 +0100  50)     this.won         = false;
+c48b9268 (Gabriele Cirulli  2014-03-22 16:24:11 +0100  51)     this.keepPlaying = false;
+c48b9268 (Gabriele Cirulli  2014-03-22 16:24:11 +0100  52) 
+c48b9268 (Gabriele Cirulli  2014-03-22 16:24:11 +0100  53)     // Add the initial tiles
+c48b9268 (Gabriele Cirulli  2014-03-22 16:24:11 +0100  54)     this.addStartTiles();
+02a24c06 (Mark Frederiksen  2014-03-18 14:48:55 -0400  55)   }
+cf31e146 (Gabriele Cirulli  2014-03-08 12:50:45 +0100  56) 
+cf31e146 (Gabriele Cirulli  2014-03-08 12:50:45 +0100  57)   // Update the actuator
+dca5207f (Gabriele Cirulli  2014-03-08 13:10:54 +0100  58)   this.actuate();
+cf31e146 (Gabriele Cirulli  2014-03-08 12:50:45 +0100  59) };
+cf31e146 (Gabriele Cirulli  2014-03-08 12:50:45 +0100  60) 
+cf31e146 (Gabriele Cirulli  2014-03-08 12:50:45 +0100  61) // Set up the initial tiles to start the game with
+cf31e146 (Gabriele Cirulli  2014-03-08 12:50:45 +0100  62) GameManager.prototype.addStartTiles = function () {
+cf31e146 (Gabriele Cirulli  2014-03-08 12:50:45 +0100  63)   for (var i = 0; i < this.startTiles; i++) {
+dca5207f (Gabriele Cirulli  2014-03-08 13:10:54 +0100  64)     this.addRandomTile();
+cf31e146 (Gabriele Cirulli  2014-03-08 12:50:45 +0100  65)   }
+cf31e146 (Gabriele Cirulli  2014-03-08 12:50:45 +0100  66) };
+cf31e146 (Gabriele Cirulli  2014-03-08 12:50:45 +0100  67) 
+cf31e146 (Gabriele Cirulli  2014-03-08 12:50:45 +0100  68) // Adds a tile in a random position
+dca5207f (Gabriele Cirulli  2014-03-08 13:10:54 +0100  69) GameManager.prototype.addRandomTile = function () {
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100  70)   if (this.grid.cellsAvailable()) {
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100  71)     var value = Math.random() < 0.9 ? 2 : 4;
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100  72)     var tile = new Tile(this.grid.randomAvailableCell(), value);
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100  73) 
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100  74)     this.grid.insertTile(tile);
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100  75)   }
+cf31e146 (Gabriele Cirulli  2014-03-08 12:50:45 +0100  76) };
+cf31e146 (Gabriele Cirulli  2014-03-08 12:50:45 +0100  77) 
+cf31e146 (Gabriele Cirulli  2014-03-08 12:50:45 +0100  78) // Sends the updated grid to the actuator
+dca5207f (Gabriele Cirulli  2014-03-08 13:10:54 +0100  79) GameManager.prototype.actuate = function () {
+02a24c06 (Mark Frederiksen  2014-03-18 14:48:55 -0400  80)   if (this.storageManager.getBestScore() < this.score) {
+02a24c06 (Mark Frederiksen  2014-03-18 14:48:55 -0400  81)     this.storageManager.setBestScore(this.score);
+664546ef (Tim Petricola     2014-03-10 16:02:16 -0400  82)   }
+664546ef (Tim Petricola     2014-03-10 16:02:16 -0400  83) 
+af683a78 (Gabriele Cirulli  2014-03-22 18:33:24 +0100  84)   // Clear the state when the game is over (game over only, not win)
+af683a78 (Gabriele Cirulli  2014-03-22 18:33:24 +0100  85)   if (this.over) {
+af683a78 (Gabriele Cirulli  2014-03-22 18:33:24 +0100  86)     this.storageManager.clearGameState();
+af683a78 (Gabriele Cirulli  2014-03-22 18:33:24 +0100  87)   } else {
+af683a78 (Gabriele Cirulli  2014-03-22 18:33:24 +0100  88)     this.storageManager.setGameState(this.serialize());
+af683a78 (Gabriele Cirulli  2014-03-22 18:33:24 +0100  89)   }
+02a24c06 (Mark Frederiksen  2014-03-18 14:48:55 -0400  90) 
+f18f7cee (Gabriele Cirulli  2014-03-09 23:03:13 +0100  91)   this.actuator.actuate(this.grid, {
+5392893c (Gabriele Cirulli  2014-03-14 13:34:05 +0100  92)     score:      this.score,
+5392893c (Gabriele Cirulli  2014-03-14 13:34:05 +0100  93)     over:       this.over,
+5392893c (Gabriele Cirulli  2014-03-14 13:34:05 +0100  94)     won:        this.won,
+02a24c06 (Mark Frederiksen  2014-03-18 14:48:55 -0400  95)     bestScore:  this.storageManager.getBestScore(),
+5392893c (Gabriele Cirulli  2014-03-14 13:34:05 +0100  96)     terminated: this.isGameTerminated()
+f18f7cee (Gabriele Cirulli  2014-03-09 23:03:13 +0100  97)   });
+664546ef (Tim Petricola     2014-03-10 16:02:16 -0400  98) 
+cf31e146 (Gabriele Cirulli  2014-03-08 12:50:45 +0100  99) };
+cf31e146 (Gabriele Cirulli  2014-03-08 12:50:45 +0100 100) 
+6cb3d71a (Gabriele Cirulli  2014-03-22 18:41:47 +0100 101) // Represent the current game as an object
+c48b9268 (Gabriele Cirulli  2014-03-22 16:24:11 +0100 102) GameManager.prototype.serialize = function () {
+c48b9268 (Gabriele Cirulli  2014-03-22 16:24:11 +0100 103)   return {
+c48b9268 (Gabriele Cirulli  2014-03-22 16:24:11 +0100 104)     grid:        this.grid.serialize(),
+c48b9268 (Gabriele Cirulli  2014-03-22 16:24:11 +0100 105)     score:       this.score,
+c48b9268 (Gabriele Cirulli  2014-03-22 16:24:11 +0100 106)     over:        this.over,
+c48b9268 (Gabriele Cirulli  2014-03-22 16:24:11 +0100 107)     won:         this.won,
+c48b9268 (Gabriele Cirulli  2014-03-22 16:24:11 +0100 108)     keepPlaying: this.keepPlaying
+c48b9268 (Gabriele Cirulli  2014-03-22 16:24:11 +0100 109)   };
+c48b9268 (Gabriele Cirulli  2014-03-22 16:24:11 +0100 110) };
+02a24c06 (Mark Frederiksen  2014-03-18 14:48:55 -0400 111) 
+53e08722 (Gabriele Cirulli  2014-03-09 20:03:04 +0100 112) // Save all tile positions and remove merger info
+53e08722 (Gabriele Cirulli  2014-03-09 20:03:04 +0100 113) GameManager.prototype.prepareTiles = function () {
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 114)   this.grid.eachCell(function (x, y, tile) {
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 115)     if (tile) {
+53e08722 (Gabriele Cirulli  2014-03-09 20:03:04 +0100 116)       tile.mergedFrom = null;
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 117)       tile.savePosition();
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 118)     }
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 119)   });
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 120) };
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 121) 
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 122) // Move a tile and its representation
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 123) GameManager.prototype.moveTile = function (tile, cell) {
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 124)   this.grid.cells[tile.x][tile.y] = null;
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 125)   this.grid.cells[cell.x][cell.y] = tile;
+53e08722 (Gabriele Cirulli  2014-03-09 20:03:04 +0100 126)   tile.updatePosition(cell);
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 127) };
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 128) 
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 129) // Move tiles on the grid in the specified direction
+cf31e146 (Gabriele Cirulli  2014-03-08 12:50:45 +0100 130) GameManager.prototype.move = function (direction) {
+6cb3d71a (Gabriele Cirulli  2014-03-22 18:41:47 +0100 131)   // 0: up, 1: right, 2: down, 3: left
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 132)   var self = this;
+cf31e146 (Gabriele Cirulli  2014-03-08 12:50:45 +0100 133) 
+5392893c (Gabriele Cirulli  2014-03-14 13:34:05 +0100 134)   if (this.isGameTerminated()) return; // Don't do anything if the game's over
+f18f7cee (Gabriele Cirulli  2014-03-09 23:03:13 +0100 135) 
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 136)   var cell, tile;
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 137) 
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 138)   var vector     = this.getVector(direction);
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 139)   var traversals = this.buildTraversals(vector);
+53e08722 (Gabriele Cirulli  2014-03-09 20:03:04 +0100 140)   var moved      = false;
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 141) 
+53e08722 (Gabriele Cirulli  2014-03-09 20:03:04 +0100 142)   // Save the current tile positions and remove merger information
+53e08722 (Gabriele Cirulli  2014-03-09 20:03:04 +0100 143)   this.prepareTiles();
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 144) 
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 145)   // Traverse the grid in the right direction and move tiles
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 146)   traversals.x.forEach(function (x) {
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 147)     traversals.y.forEach(function (y) {
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 148)       cell = { x: x, y: y };
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 149)       tile = self.grid.cellContent(cell);
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 150) 
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 151)       if (tile) {
+53e08722 (Gabriele Cirulli  2014-03-09 20:03:04 +0100 152)         var positions = self.findFarthestPosition(cell, vector);
+53e08722 (Gabriele Cirulli  2014-03-09 20:03:04 +0100 153)         var next      = self.grid.cellContent(positions.next);
+53e08722 (Gabriele Cirulli  2014-03-09 20:03:04 +0100 154) 
+53e08722 (Gabriele Cirulli  2014-03-09 20:03:04 +0100 155)         // Only one merger per row traversal?
+53e08722 (Gabriele Cirulli  2014-03-09 20:03:04 +0100 156)         if (next && next.value === tile.value && !next.mergedFrom) {
+53e08722 (Gabriele Cirulli  2014-03-09 20:03:04 +0100 157)           var merged = new Tile(positions.next, tile.value * 2);
+53e08722 (Gabriele Cirulli  2014-03-09 20:03:04 +0100 158)           merged.mergedFrom = [tile, next];
+53e08722 (Gabriele Cirulli  2014-03-09 20:03:04 +0100 159) 
+53e08722 (Gabriele Cirulli  2014-03-09 20:03:04 +0100 160)           self.grid.insertTile(merged);
+53e08722 (Gabriele Cirulli  2014-03-09 20:03:04 +0100 161)           self.grid.removeTile(tile);
+53e08722 (Gabriele Cirulli  2014-03-09 20:03:04 +0100 162) 
+53e08722 (Gabriele Cirulli  2014-03-09 20:03:04 +0100 163)           // Converge the two tiles' positions
+53e08722 (Gabriele Cirulli  2014-03-09 20:03:04 +0100 164)           tile.updatePosition(positions.next);
+f18f7cee (Gabriele Cirulli  2014-03-09 23:03:13 +0100 165) 
+f18f7cee (Gabriele Cirulli  2014-03-09 23:03:13 +0100 166)           // Update the score
+f18f7cee (Gabriele Cirulli  2014-03-09 23:03:13 +0100 167)           self.score += merged.value;
+4b3055fc (Gabriele Cirulli  2014-03-09 23:24:17 +0100 168) 
+e65111f1 (Gabriele Cirulli  2014-03-09 23:43:56 +0100 169)           // The mighty 2048 tile
+e65111f1 (Gabriele Cirulli  2014-03-09 23:43:56 +0100 170)           if (merged.value === 2048) self.won = true;
+53e08722 (Gabriele Cirulli  2014-03-09 20:03:04 +0100 171)         } else {
+53e08722 (Gabriele Cirulli  2014-03-09 20:03:04 +0100 172)           self.moveTile(tile, positions.farthest);
+53e08722 (Gabriele Cirulli  2014-03-09 20:03:04 +0100 173)         }
+53e08722 (Gabriele Cirulli  2014-03-09 20:03:04 +0100 174) 
+4b3055fc (Gabriele Cirulli  2014-03-09 23:24:17 +0100 175)         if (!self.positionsEqual(cell, tile)) {
+4b3055fc (Gabriele Cirulli  2014-03-09 23:24:17 +0100 176)           moved = true; // The tile moved from its original cell!
+4b3055fc (Gabriele Cirulli  2014-03-09 23:24:17 +0100 177)         }
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 178)       }
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 179)     });
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 180)   });
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 181) 
+53e08722 (Gabriele Cirulli  2014-03-09 20:03:04 +0100 182)   if (moved) {
+53e08722 (Gabriele Cirulli  2014-03-09 20:03:04 +0100 183)     this.addRandomTile();
+f18f7cee (Gabriele Cirulli  2014-03-09 23:03:13 +0100 184) 
+f18f7cee (Gabriele Cirulli  2014-03-09 23:03:13 +0100 185)     if (!this.movesAvailable()) {
+f18f7cee (Gabriele Cirulli  2014-03-09 23:03:13 +0100 186)       this.over = true; // Game over!
+f18f7cee (Gabriele Cirulli  2014-03-09 23:03:13 +0100 187)     }
+f18f7cee (Gabriele Cirulli  2014-03-09 23:03:13 +0100 188) 
+53e08722 (Gabriele Cirulli  2014-03-09 20:03:04 +0100 189)     this.actuate();
+53e08722 (Gabriele Cirulli  2014-03-09 20:03:04 +0100 190)   }
+cf31e146 (Gabriele Cirulli  2014-03-08 12:50:45 +0100 191) };
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 192) 
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 193) // Get the vector representing the chosen direction
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 194) GameManager.prototype.getVector = function (direction) {
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 195)   // Vectors representing tile movement
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 196)   var map = {
+6cb3d71a (Gabriele Cirulli  2014-03-22 18:41:47 +0100 197)     0: { x: 0,  y: -1 }, // Up
+6cb3d71a (Gabriele Cirulli  2014-03-22 18:41:47 +0100 198)     1: { x: 1,  y: 0 },  // Right
+6cb3d71a (Gabriele Cirulli  2014-03-22 18:41:47 +0100 199)     2: { x: 0,  y: 1 },  // Down
+6cb3d71a (Gabriele Cirulli  2014-03-22 18:41:47 +0100 200)     3: { x: -1, y: 0 }   // Left
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 201)   };
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 202) 
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 203)   return map[direction];
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 204) };
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 205) 
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 206) // Build a list of positions to traverse in the right order
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 207) GameManager.prototype.buildTraversals = function (vector) {
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 208)   var traversals = { x: [], y: [] };
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 209) 
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 210)   for (var pos = 0; pos < this.size; pos++) {
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 211)     traversals.x.push(pos);
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 212)     traversals.y.push(pos);
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 213)   }
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 214) 
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 215)   // Always traverse from the farthest cell in the chosen direction
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 216)   if (vector.x === 1) traversals.x = traversals.x.reverse();
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 217)   if (vector.y === 1) traversals.y = traversals.y.reverse();
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 218) 
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 219)   return traversals;
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 220) };
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 221) 
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 222) GameManager.prototype.findFarthestPosition = function (cell, vector) {
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 223)   var previous;
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 224) 
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 225)   // Progress towards the vector direction until an obstacle is found
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 226)   do {
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 227)     previous = cell;
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 228)     cell     = { x: previous.x + vector.x, y: previous.y + vector.y };
+53e08722 (Gabriele Cirulli  2014-03-09 20:03:04 +0100 229)   } while (this.grid.withinBounds(cell) &&
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 230)            this.grid.cellAvailable(cell));
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 231) 
+53e08722 (Gabriele Cirulli  2014-03-09 20:03:04 +0100 232)   return {
+53e08722 (Gabriele Cirulli  2014-03-09 20:03:04 +0100 233)     farthest: previous,
+53e08722 (Gabriele Cirulli  2014-03-09 20:03:04 +0100 234)     next: cell // Used to check if a merge is required
+53e08722 (Gabriele Cirulli  2014-03-09 20:03:04 +0100 235)   };
+b20e26e3 (Gabriele Cirulli  2014-03-09 14:32:30 +0100 236) };
+f18f7cee (Gabriele Cirulli  2014-03-09 23:03:13 +0100 237) 
+f18f7cee (Gabriele Cirulli  2014-03-09 23:03:13 +0100 238) GameManager.prototype.movesAvailable = function () {
+f18f7cee (Gabriele Cirulli  2014-03-09 23:03:13 +0100 239)   return this.grid.cellsAvailable() || this.tileMatchesAvailable();
+f18f7cee (Gabriele Cirulli  2014-03-09 23:03:13 +0100 240) };
+f18f7cee (Gabriele Cirulli  2014-03-09 23:03:13 +0100 241) 
+f18f7cee (Gabriele Cirulli  2014-03-09 23:03:13 +0100 242) // Check for available matches between tiles (more expensive check)
+f18f7cee (Gabriele Cirulli  2014-03-09 23:03:13 +0100 243) GameManager.prototype.tileMatchesAvailable = function () {
+f18f7cee (Gabriele Cirulli  2014-03-09 23:03:13 +0100 244)   var self = this;
+f18f7cee (Gabriele Cirulli  2014-03-09 23:03:13 +0100 245) 
+f18f7cee (Gabriele Cirulli  2014-03-09 23:03:13 +0100 246)   var tile;
+f18f7cee (Gabriele Cirulli  2014-03-09 23:03:13 +0100 247) 
+f18f7cee (Gabriele Cirulli  2014-03-09 23:03:13 +0100 248)   for (var x = 0; x < this.size; x++) {
+f18f7cee (Gabriele Cirulli  2014-03-09 23:03:13 +0100 249)     for (var y = 0; y < this.size; y++) {
+f18f7cee (Gabriele Cirulli  2014-03-09 23:03:13 +0100 250)       tile = this.grid.cellContent({ x: x, y: y });
+f18f7cee (Gabriele Cirulli  2014-03-09 23:03:13 +0100 251) 
+f18f7cee (Gabriele Cirulli  2014-03-09 23:03:13 +0100 252)       if (tile) {
+f18f7cee (Gabriele Cirulli  2014-03-09 23:03:13 +0100 253)         for (var direction = 0; direction < 4; direction++) {
+f18f7cee (Gabriele Cirulli  2014-03-09 23:03:13 +0100 254)           var vector = self.getVector(direction);
+f18f7cee (Gabriele Cirulli  2014-03-09 23:03:13 +0100 255)           var cell   = { x: x + vector.x, y: y + vector.y };
+f18f7cee (Gabriele Cirulli  2014-03-09 23:03:13 +0100 256) 
+f18f7cee (Gabriele Cirulli  2014-03-09 23:03:13 +0100 257)           var other  = self.grid.cellContent(cell);
+f18f7cee (Gabriele Cirulli  2014-03-09 23:03:13 +0100 258) 
+f18f7cee (Gabriele Cirulli  2014-03-09 23:03:13 +0100 259)           if (other && other.value === tile.value) {
+f18f7cee (Gabriele Cirulli  2014-03-09 23:03:13 +0100 260)             return true; // These two tiles can be merged
+f18f7cee (Gabriele Cirulli  2014-03-09 23:03:13 +0100 261)           }
+f18f7cee (Gabriele Cirulli  2014-03-09 23:03:13 +0100 262)         }
+f18f7cee (Gabriele Cirulli  2014-03-09 23:03:13 +0100 263)       }
+f18f7cee (Gabriele Cirulli  2014-03-09 23:03:13 +0100 264)     }
+f18f7cee (Gabriele Cirulli  2014-03-09 23:03:13 +0100 265)   }
+f18f7cee (Gabriele Cirulli  2014-03-09 23:03:13 +0100 266) 
+f18f7cee (Gabriele Cirulli  2014-03-09 23:03:13 +0100 267)   return false;
+f18f7cee (Gabriele Cirulli  2014-03-09 23:03:13 +0100 268) };
+4b3055fc (Gabriele Cirulli  2014-03-09 23:24:17 +0100 269) 
+4b3055fc (Gabriele Cirulli  2014-03-09 23:24:17 +0100 270) GameManager.prototype.positionsEqual = function (first, second) {
+4b3055fc (Gabriele Cirulli  2014-03-09 23:24:17 +0100 271)   return first.x === second.x && first.y === second.y;
+4b3055fc (Gabriele Cirulli  2014-03-09 23:24:17 +0100 272) };
