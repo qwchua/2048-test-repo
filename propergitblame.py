@@ -2,6 +2,7 @@ import click
 from gc import collect
 import re
 import subprocess
+import csv
 from matplotlib import pyplot as plt
 import numpy
 import time
@@ -9,21 +10,34 @@ import concurrent.futures
 from numba import njit
 from numba.typed import List
 
+# def getStarts(line):
+#     pattern = re.compile(r'@@\s-\d*,?\d*\s\+\d*,?\d* @@')
+#     match = pattern.findall(line)
+#     match = match[0]
+#     matches = match.split()
+
+#     start1 = matches[1][1:].split(',')[0]
+#     start2 = matches[2][1:].split(',')[0]
+
+#     return int(start1), int(start2)
+
 def getStarts(line):
-    pattern = re.compile(r'@@\s-\d*,?\d*\s\+\d*,?\d* @@')
-    match = pattern.findall(line)
-    match = match[0]
-    matches = match.split()
+    lasto = line.rfind("@@")
+    line = line[3:lasto-1]
+    lines = line.split()
 
-    start1 = matches[1][1:].split(',')[0]
-    start2 = matches[2][1:].split(',')[0]
+    start1 = lines[0][1:].split(',')[0]
+    start2 = lines[1][1:].split(',')[0]
 
-    return int(start1), int(start2)
+    start1 = int(start1)
+    start2 = int(start2)
 
-def getchanges(unparseddiff,hash0, hash1,oldauthor,newauthor):
+    return start1, start2
+
+def getchanges(unparseddiff,hash0, hash1,oldauthor,newauthor,threshold):
     output = []
     diffs = unparseddiff.split("\n")
-
+    THRESHOLDPERCENT = threshold // 100
     start1 = 0
     start2 = 0
 
@@ -36,33 +50,60 @@ def getchanges(unparseddiff,hash0, hash1,oldauthor,newauthor):
             while(queue1 or queue2):
                 if(queue1 and queue2 and queue1[0]["line"] == queue2[0]["line"]):
                     #do Levenshtein Distance algo here
-                    THRESHOLDPERCENT = 0.5
                     previousVersionLine = List(queue1[0]["content"])
                     newVersionLine = List(queue2[0]["content"])
-                    distance = levenshteinDistanceDP(previousVersionLine,newVersionLine)
-                    diffpercent = distance // len(previousVersionLine)
-
-                    if diffpercent > THRESHOLDPERCENT:
-                        #assign ownership to new version author
+                    diff = len(previousVersionLine) * THRESHOLDPERCENT
+                    
+                    if len(newVersionLine) == 0 and len(previousVersionLine) == 0:
                         change = {
+                                "hash": hash0,
+                                "line": queue1[0]['line'],
+                                "type": "edit",
+                                "owner": oldauthor
+                            }
+                        output.append(change)
+
+                    elif len(newVersionLine) < len(previousVersionLine) - diff or len(newVersionLine) > len(previousVersionLine) + diff:
+                        change = {
+                            "hash": hash1,
                             "line": queue1[0]['line'],
                             "type": "edit",
                             "owner": newauthor
                         }
                         output.append(change)
+                    
                     else:
-                        #assign ownership to old version author as the diff % is not enough
-                        change = {
-                            "line": queue1[0]['line'],
-                            "type": "edit",
-                            "owner": oldauthor
-                        }
-                        output.append(change)
+                        #t1 = time.perf_counter()
+                        distance = levenshteinDistanceDP(queue1[0]["content"],queue2[0]["content"])
+                        #t2 = time.perf_counter()
+
+                        #print(f'Levenshtein finished in {t2-t1:.3f} s')
+                        diffpercent = distance // len(previousVersionLine)
+
+                        if diffpercent > THRESHOLDPERCENT:
+                            #assign ownership to new version author
+                            change = {
+                                "hash": hash1,
+                                "line": queue1[0]['line'],
+                                "type": "edit",
+                                "owner": newauthor
+                            }
+                            output.append(change)
+                        else:
+                            #assign ownership to old version author as the diff % is not enough
+                            change = {
+                                "hash": hash0,
+                                "line": queue1[0]['line'],
+                                "type": "edit",
+                                "owner": oldauthor
+                            }
+                            output.append(change)
+
                     queue1.pop(0)
                     queue2.pop(0)
                 elif(queue1):
                     lineToStartPoppingAt = queue1[0]["line"]
-                    while(queue1):
+                    while(numpy.any(queue1)):
                         change = {
                             "line": lineToStartPoppingAt,
                             "type": "delete",
@@ -73,6 +114,7 @@ def getchanges(unparseddiff,hash0, hash1,oldauthor,newauthor):
                         queue1.pop(0)
                 elif(queue2):
                     change = {
+                            "hash": hash1,
                             "line": queue2[0]["line"],
                             "type": "add",
                             "owner": newauthor
@@ -87,10 +129,10 @@ def getchanges(unparseddiff,hash0, hash1,oldauthor,newauthor):
             if(len(diffs[x]) != 0):
                 start1, start2 = getStarts(diffs[x])
         elif diffs[x][0] == "-":
-            queue1.append({"line":start1+balance, "content": diffs[1:]})
+            queue1.append({"line":start1+balance, "content": diffs[x][1:]})
             start1+=1
         elif diffs[x][0] == "+":
-            queue2.append({"line":start2, "content": diffs[1:]})
+            queue2.append({"line":start2, "content": diffs[x][1:]})
             start2+=1
 
     return {
@@ -117,7 +159,8 @@ def getgitdiff(commithash0,commithash1,filename):
 @click.option("-f", "--filename", type=str)
 @click.option("-n", "--numberofcommits", type=int, default = 200)
 @click.option("-o", "--output", type=str, default = "annotate")
-def propergitblame(filename, output, numberofcommits):
+@click.option("-t", "--threshold", type=int, default = "50")
+def propergitblame(filename, output, numberofcommits, threshold):
     if filename == "all":
         print("Checking contributions for all files tracked by git!")
         getAllTrackedFiles = "git ls-tree -r origin --name-only"
@@ -125,23 +168,46 @@ def propergitblame(filename, output, numberofcommits):
         unparsed_show = command.stdout
         unparsed_show = unparsed_show.split('\n')
         listOfFilesTrackedByGit = unparsed_show[:-1]
-        lisfOfFilesEndingWithJs = []
-        for l in listOfFilesTrackedByGit:
-            if l[-3:len(l)] == ".py":
-                lisfOfFilesEndingWithJs.append(l)
 
         print("Found {} files!".format(len(listOfFilesTrackedByGit)))
         t1 = time.perf_counter()
 
-        with concurrent.futures.ProcessPoolExecutor() as executor:
-            executor.map(getScoreboardwithoutnumberofcommits, lisfOfFilesEndingWithJs)
+        dict = {}
+        authorsset= {}
+
+        for file in listOfFilesTrackedByGit:
+            try:
+                ownershipdict = {}
+                scoreboard = getScoreboard(file,numberofcommits,threshold)
+
+                for i in range(1, len(scoreboard)):
+                    author = scoreboard[i]
+                    if author in ownershipdict.keys():
+                        #key exists
+                        ownershipdict[author] += 1
+                    else:
+                        ownershipdict[author] = 1
+                        authorsset.add(author)
+
+                dict[file] = ownershipdict
+            except:
+                print("error parsing this file!")
+                dict[file] = "error"
+
+        authorlist= list(authorsset)
+
+        with open('output.csv', 'w', encoding='UTF8', newline='') as f:
+            writer = csv.DictWriter(f, fieldnames=authorlist)
+            writer.writeheader()
+            #writer.writerows(rows)
+
         t2 = time.perf_counter()
 
         print(f'Finished in {t2-t1}')
 
     else:
         t1 = time.perf_counter()
-        scoreboard = getScoreboard(filename, numberofcommits)
+        scoreboard = getScoreboard(filename, numberofcommits, threshold)
         
         if(output == "piechart"):
             print("Displaying piechart!")
@@ -220,7 +286,7 @@ def propergitblame(filename, output, numberofcommits):
 
 
 
-def getScoreboard(filename, numberofcommits=200):
+def getScoreboard(filename, numberofcommits=200, threshold=50):
     t1 = time.perf_counter()
     gitlogcommand = 'git log -n {} --pretty="format:%H:%an:%ae:%cD" -- {} '.format(numberofcommits,filename)
     unparsedlog = subprocess.run(gitlogcommand, shell=True, capture_output=True, text=True)
@@ -272,7 +338,7 @@ def getScoreboard(filename, numberofcommits=200):
     changes = {}
     
     with concurrent.futures.ProcessPoolExecutor() as executor:
-        results = [executor.submit(getchanges, diffs[commitgraph[i]['hash']+":"+commitgraph[i+1]['hash']], commitgraph[i]['hash'], commitgraph[i+1]['hash'], commitgraph[i]['author'],commitgraph[i+1]['author']) for i in range(len(commitgraph)-1)]
+        results = [executor.submit(getchanges, diffs[commitgraph[i]['hash']+":"+commitgraph[i+1]['hash']], commitgraph[i]['hash'], commitgraph[i+1]['hash'], commitgraph[i]['author'],commitgraph[i+1]['author'],threshold) for i in range(len(commitgraph)-1)]
         
         for f in concurrent.futures.as_completed(results):
             changes[f.result()["hash"]] = f.result()["data"]
@@ -295,7 +361,6 @@ def getScoreboard(filename, numberofcommits=200):
                     "date" : newdate
                     }
                 scoreboard.insert(int(c["line"]), obj)
-                #scoreboard.insert(int(c["line"]), newauthor)
             elif c["type"] == "delete":
                 scoreboard.pop(int(c["line"]))
             elif c["type"] == "edit":
@@ -309,7 +374,6 @@ def getScoreboard(filename, numberofcommits=200):
                     "author" : c["owner"],
                     "date" : editdate
                     }
-                #scoreboard[int(c["line"])] = c["owner"]
                 scoreboard[int(c["line"])] = obj
 
 
